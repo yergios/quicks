@@ -1,7 +1,7 @@
 #!/usr/bin/env lua
 
 -- Configuration
-local REPOS = "D:\\repos"
+local REPOS = package.config:sub(1, 1) == "\\" and "D:\\repos" or "/mnt/shared/repos"
 local AUTHOR = "Sergio Y. Lee"
 
 function is_windows()
@@ -173,7 +173,7 @@ function create_astro_project(site_name)
     return false
   end
 
-  local domain = dir_name .. ".com"
+  local domain = site_name:lower():gsub("%s+", "") .. ".com"
   local description = "Welcome to " .. site_name .. "."
 
   local files_to_update = {
