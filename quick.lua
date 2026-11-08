@@ -1,11 +1,21 @@
 #!/usr/bin/env lua
 
 -- Configuration
-local REPOS = package.config:sub(1, 1) == "\\" and "D:\\repos" or "/mnt/shared/repos"
 local AUTHOR = "Sergio Y. Lee"
 
 function is_windows()
   return package.config:sub(1, 1) == "\\"
+end
+
+-- Templates are read from the directory this script lives in, so a clone of
+-- the repo works wherever it is placed.
+local TEMPLATES = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
+
+-- New projects are created in QUICKS_DIR when set, otherwise in the current
+-- directory. Set it per machine in the shell profile or system environment.
+local OUTPUT = os.getenv("QUICKS_DIR")
+if OUTPUT == "" then
+  OUTPUT = nil
 end
 
 function get_current_date()
@@ -114,30 +124,35 @@ function update_file_content(file_path, program_name)
   return true
 end
 
-function update_tooling_files(program_name, language)
-  -- Update build.lua if it exists
-  if path_exists("build.lua") then
-    local content, err = read_file("build.lua")
+function update_tooling_files(program_name, target_dir)
+  for _, name in ipairs({ "build.lua", "run.lua" }) do
+    local path = path_join(target_dir, name)
+    local content = read_file(path)
     if content then
       content = content:gsub(
         'local PROJECT_NAME = "quick"',
         'local PROJECT_NAME = "' .. program_name .. '"'
       )
-      write_file("build.lua", content)
+      write_file(path, content)
     end
   end
+end
 
-  -- Update run.lua if it exists
-  if path_exists("run.lua") then
-    local content, err = read_file("run.lua")
-    if content then
-      content = content:gsub(
-        'local PROJECT_NAME = "quick"',
-        'local PROJECT_NAME = "' .. program_name .. '"'
-      )
-      write_file("run.lua", content)
-    end
+-- Where a new project directory goes: inside QUICKS_DIR if set, else the cwd.
+function get_target_dir(dir_name)
+  if OUTPUT then
+    return path_join(OUTPUT, dir_name)
   end
+  return dir_name
+end
+
+-- Fails early with a clear message instead of a cryptic copy error.
+function check_output_dir()
+  if OUTPUT and not path_exists(OUTPUT) then
+    print("QUICKS_DIR does not exist: " .. OUTPUT)
+    return false
+  end
+  return true
 end
 
 function open_editor(file_path)
@@ -154,14 +169,14 @@ function to_kebab_case(str)
 end
 
 function create_astro_project(site_name)
-  local dir_name = to_kebab_case(site_name)
+  local dir_name = get_target_dir((to_kebab_case(site_name)))
 
   if path_exists(dir_name) then
     print("Directory '" .. dir_name .. "' already exists")
     return false
   end
 
-  local template_dir = path_join(REPOS, "quicks", "astro")
+  local template_dir = path_join(TEMPLATES, "astro")
   if not path_exists(template_dir) then
     print("Template directory not found: " .. template_dir)
     return false
@@ -201,13 +216,17 @@ function create_astro_project(site_name)
 end
 
 function create_csharp_project(program_name)
-  if path_exists(program_name) then
-    print("Directory '" .. program_name .. "' already exists")
+  local target_dir = get_target_dir(program_name)
+
+  if path_exists(target_dir) then
+    print("Directory '" .. target_dir .. "' already exists")
     return false
   end
 
   local dotnet_cmd = "dotnet new console -n "
-    .. program_name
+    .. escape_path(program_name)
+    .. " -o "
+    .. escape_path(target_dir)
     .. " --use-program-main"
   local result, _, exit_code = os.execute(dotnet_cmd)
 
@@ -216,24 +235,17 @@ function create_csharp_project(program_name)
     return false
   end
 
-  -- Change to the new directory and open editor
-  local cd_cmd = "cd " .. escape_path(program_name)
-  if is_windows() then
-    os.execute(cd_cmd .. " && nvim Program.cs")
-  else
-    os.execute(cd_cmd .. "; nvim Program.cs")
-  end
-
+  open_editor(path_join(target_dir, "Program.cs"))
   return true
 end
 
-function process_c_cpp_template(program_name, language)
+function process_c_cpp_template(program_name, language, target_dir)
   local extension = (language == "cpp") and ".cpp" or ".c"
   local main_file = ""
 
   -- Rename the source file
-  local old_path = path_join("src", "quick.c")
-  local new_path = path_join("src", program_name .. extension)
+  local old_path = path_join(target_dir, "src", "quick.c")
+  local new_path = path_join(target_dir, "src", program_name .. extension)
 
   if path_exists(old_path) then
     local success, exit_code = move_file(old_path, new_path)
@@ -246,7 +258,7 @@ function process_c_cpp_template(program_name, language)
   end
 
   -- Update build files
-  update_tooling_files(program_name, language)
+  update_tooling_files(program_name, target_dir)
 
   return main_file
 end
@@ -275,6 +287,10 @@ function quick(language, program_name)
     return
   end
 
+  if not check_output_dir() then
+    return
+  end
+
   -- Handle C# differently
   if language == "cs" then
     create_csharp_project(program_name)
@@ -287,32 +303,25 @@ function quick(language, program_name)
     return
   end
 
+  local target_dir = get_target_dir(program_name)
+
   -- Check if directory already exists
-  if path_exists(program_name) then
-    print("Directory '" .. program_name .. "' already exists")
+  if path_exists(target_dir) then
+    print("Directory '" .. target_dir .. "' already exists")
     return
   end
 
   -- Copy template
-  local template_subdir = template_mapping[language]
-  local base_template_dir = path_join(REPOS, "quicks")
-  local template_dir = path_join(base_template_dir, template_subdir)
+  local template_dir = path_join(TEMPLATES, template_mapping[language])
 
   if not path_exists(template_dir) then
     print("Template directory not found: " .. template_dir)
     return
   end
 
-  local success, exit_code = copy_directory(template_dir, program_name)
+  local success, exit_code = copy_directory(template_dir, target_dir)
   if not success then
     print("Error copying template directory")
-    return
-  end
-
-  -- Change to the new directory
-  local original_dir = os.getenv("PWD") or "."
-  if not os.execute("cd " .. escape_path(program_name)) then
-    print("Error changing to directory: " .. program_name)
     return
   end
 
@@ -320,9 +329,9 @@ function quick(language, program_name)
 
   -- Language-specific processing
   if language == "c" or language == "cpp" then
-    main_file = process_c_cpp_template(program_name, language)
+    main_file = process_c_cpp_template(program_name, language, target_dir)
   elseif language == "ts" then
-    main_file = "index.ts"
+    main_file = path_join(target_dir, "index.ts")
   elseif language == "odin" then
     -- Placeholder for future odin template processing
     main_file = ""
