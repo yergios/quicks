@@ -1,4 +1,4 @@
-namespace {{NAMESPACE}};
+namespace {{PROJECT}};
 
 class Program
 {

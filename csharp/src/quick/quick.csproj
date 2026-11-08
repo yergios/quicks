@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>{{NAMESPACE}}</RootNamespace>
+    <RootNamespace>{{PROJECT}}</RootNamespace>
   </PropertyGroup>
 
 </Project>

@@ -57,7 +57,7 @@ end
 
 -- Build output and installed dependencies live next to the templates while
 -- they are being developed. They must not end up in new projects.
-local EXCLUDE_DIRS = { "node_modules", "dist", ".astro", "build" }
+local EXCLUDE_DIRS = { "node_modules", "dist", ".astro", "build", "bin", "obj" }
 local EXCLUDE_FILES = { "pnpm-lock.yaml" }
 
 local function copy_directory(source, destination)
@@ -284,21 +284,33 @@ local function to_pascal_case(str)
   return pascal
 end
 
--- The directory keeps the name as typed, the project and namespace are PascalCase
+-- Layout: dotfiles, Directory.*.props and the solution file at the root, the
+-- program in src/<Project>/. The root directory keeps the name as typed, the
+-- project and namespace are PascalCase.
 local function process_csharp_template(program_name, target_dir)
   local project_name = to_pascal_case(program_name)
+  local src_dir = path_join(target_dir, "src")
 
-  local old_path = path_join(target_dir, "quick.csproj")
-  local new_path = path_join(target_dir, project_name .. ".csproj")
-  if not move_file(old_path, new_path) then
+  local project_dir = path_join(src_dir, project_name)
+  if not move_file(path_join(src_dir, "quick"), project_dir) then
+    print("Error renaming project directory")
+  end
+
+  local csproj = path_join(project_dir, project_name .. ".csproj")
+  if not move_file(path_join(project_dir, "quick.csproj"), csproj) then
     print("Error renaming project file")
   end
 
-  local main_file = path_join(target_dir, "Program.cs")
-  for _, file_path in ipairs({ new_path, main_file }) do
+  local solution = path_join(target_dir, project_name .. ".slnx")
+  if not move_file(path_join(target_dir, "quick.slnx"), solution) then
+    print("Error renaming solution file")
+  end
+
+  local main_file = path_join(project_dir, "Program.cs")
+  for _, file_path in ipairs({ csproj, main_file, solution }) do
     local content = read_file(file_path)
     if content then
-      write_file(file_path, replace_text(content, "{{NAMESPACE}}", project_name))
+      write_file(file_path, replace_text(content, "{{PROJECT}}", project_name))
     end
   end
 
