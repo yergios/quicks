@@ -1,0 +1,12 @@
+<Project>
+
+  <!-- Versions live here, PackageReference items in projects have no Version -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- <PackageVersion Include="Example.Package" Version="1.0.0" /> -->
+  </ItemGroup>
+
+</Project>
