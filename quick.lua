@@ -317,6 +317,16 @@ local function process_csharp_template(program_name, target_dir)
   return main_file
 end
 
+-- File-based app: one runnable <name>.cs, no project file. The name stays as
+-- typed because it is a file name, not a namespace.
+local function process_csharp_file_template(program_name, target_dir)
+  local main_file = path_join(target_dir, program_name .. ".cs")
+  if not move_file(path_join(target_dir, "quick.cs"), main_file) then
+    print("Error renaming source file")
+  end
+  return main_file
+end
+
 local function process_c_cpp_template(program_name, language, target_dir)
   local extension = (language == "cpp") and ".cpp" or ".c"
   local main_file = ""
@@ -343,7 +353,7 @@ local function process_c_cpp_template(program_name, language, target_dir)
 end
 
 local USAGE = "Usage: lua quick.lua <language> <program_name>\n"
-  .. "Supported languages: c, cpp, cs, ts, astro"
+  .. "Supported languages: c, cpp, cs, cs-file, ts, astro"
 
 local function quick(language, program_name)
   if not language or not program_name then
@@ -357,6 +367,7 @@ local function quick(language, program_name)
     c = "c",
     cpp = "c", -- cpp uses the same template as c
     cs = "csharp",
+    ["cs-file"] = "csharp-file",
     ts = "ts",
     astro = "astro",
   }
@@ -406,6 +417,8 @@ local function quick(language, program_name)
     main_file = process_c_cpp_template(program_name, language, target_dir)
   elseif language == "cs" then
     main_file = process_csharp_template(program_name, target_dir)
+  elseif language == "cs-file" then
+    main_file = process_csharp_file_template(program_name, target_dir)
   elseif language == "ts" then
     set_package_name(target_dir, to_kebab_case(program_name))
     main_file = path_join(target_dir, "index.ts")

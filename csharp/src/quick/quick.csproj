@@ -3,6 +3,8 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>{{PROJECT}}</RootNamespace>
+    <!-- Native AOT: no JIT and no installed runtime. Needs clang, publish with -r <rid> -->
+    <!-- <PublishAot>true</PublishAot> -->
   </PropertyGroup>
 
 </Project>
