@@ -3,11 +3,11 @@
 -- Configuration: Change this to your project name
 local PROJECT_NAME = "quick"
 
-function is_windows()
+local function is_windows()
   return package.config:sub(1, 1) == "\\"
 end
 
-function parse_args()
+local function parse_args()
   local config = "debug"
   local program_args = {}
   local i = 1
@@ -25,7 +25,7 @@ function parse_args()
   return config, program_args
 end
 
-function get_executable_path(config)
+local function get_executable_path(config)
   if is_windows() then
     return "build\\" .. config .. "\\" .. PROJECT_NAME .. ".exe"
   else
@@ -33,7 +33,7 @@ function get_executable_path(config)
   end
 end
 
-function path_exists(file)
+local function path_exists(file)
   local ok, err, code = os.rename(file, file)
   if not ok then
     if code == 13 then
@@ -44,7 +44,7 @@ function path_exists(file)
   return ok, err
 end
 
-function escape_arg(arg)
+local function escape_arg(arg)
   if is_windows() then
     if arg:find(" ") or arg:find('"') then
       return '"' .. arg:gsub('"', '""') .. '"'
@@ -55,7 +55,7 @@ function escape_arg(arg)
   end
 end
 
-function run_program(executable, args)
+local function run_program(executable, args)
   if not path_exists(executable) then
     print("Error: Executable not found: " .. executable)
     return false
@@ -70,7 +70,7 @@ function run_program(executable, args)
   return result, exit_code
 end
 
-function run()
+local function run()
   local config, program_args = parse_args()
   local executable = get_executable_path(config)
   local success, exit_code = run_program(executable, program_args)

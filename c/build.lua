@@ -5,11 +5,11 @@ local build_config = arg and arg[1] or "debug"
 -- Configuration: Change this to your project name
 local PROJECT_NAME = "quick"
 
-function is_windows()
+local function is_windows()
   return package.config:sub(1, 1) == "\\"
 end
 
-function escape_path(path)
+local function escape_path(path)
   if is_windows() then
     return '"' .. path:gsub('"', "") .. '"'
   else
@@ -17,7 +17,7 @@ function escape_path(path)
   end
 end
 
-function path_exists(file)
+local function path_exists(file)
   local ok, err, code = os.rename(file, file)
   if not ok then
     if code == 13 then
@@ -28,7 +28,7 @@ function path_exists(file)
   return ok, err
 end
 
-function create_dir(path)
+local function create_dir(path)
   if path_exists(path) then
     return true
   end
@@ -44,7 +44,7 @@ function create_dir(path)
   return ok, code
 end
 
-function get_outdir()
+local function get_outdir()
   if build_config == "release" then
     return "build/release"
   else
@@ -52,7 +52,7 @@ function get_outdir()
   end
 end
 
-function find_source_files()
+local function find_source_files()
   local sources = {}
   local extensions = { "*.c", "*.cpp" }
 
@@ -78,9 +78,12 @@ function find_source_files()
   return sources
 end
 
-function get_compiler()
-  local cl_check = is_windows() and os.execute("cl >nul 2>&1")
-  local gcc_check = os.execute("gcc --version >nul 2>&1")
+local function get_compiler()
+  -- ">nul" on Linux would create a file named "nul" instead of discarding
+  local null_device = is_windows() and "nul" or "/dev/null"
+  local cl_check = is_windows()
+    and os.execute("cl >" .. null_device .. " 2>&1")
+  local gcc_check = os.execute("gcc --version >" .. null_device .. " 2>&1")
 
   if cl_check then
     return "cl"
@@ -92,7 +95,7 @@ function get_compiler()
   end
 end
 
-function get_compiler_flags(compiler)
+local function get_compiler_flags(compiler)
   if compiler == "cl" then
     if build_config == "release" then
       return "/O2 /nologo"
@@ -108,7 +111,7 @@ function get_compiler_flags(compiler)
   end
 end
 
-function get_includes(compiler)
+local function get_includes(compiler)
   if compiler == "cl" then
     return '/I"include" /I"vendor\\syl"'
   else
@@ -116,7 +119,7 @@ function get_includes(compiler)
   end
 end
 
-function get_output_flags(outdir, exe_name, compiler)
+local function get_output_flags(outdir, exe_name, compiler)
   if compiler == "cl" then
     return string.format(
       "/Fe%s\\%s.exe /Fo%s\\ /Fd%s\\",
@@ -130,7 +133,7 @@ function get_output_flags(outdir, exe_name, compiler)
   end
 end
 
-function build()
+local function build()
   local outdir = get_outdir()
   local compiler = get_compiler()
   local flags = get_compiler_flags(compiler)
@@ -173,7 +176,7 @@ function build()
     )
   end
 
-  os.execute(compile_cmd)
+  return os.execute(compile_cmd)
 end
 
 if not build() then
